@@ -11,6 +11,10 @@ class Appointment extends Model
     return $this->belongsTo(Patient::class);
 }
 
-protected $fillable = ['patient_id', 'date', 'time', 'status'];
+protected $fillable = ['patient_id', 'date', 'time', 'status', 'notes'];
+
+protected $casts = [
+    'date' => 'date',
+];
 
 }

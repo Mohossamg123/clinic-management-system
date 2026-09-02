@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Appointment;
 use App\Models\Patient;
+use App\Http\Requests\AppointmentRequest;
 use Illuminate\Http\Request;
 
 class AppointmentController extends Controller
@@ -20,15 +21,10 @@ class AppointmentController extends Controller
         return view('appointments.create', compact('patients'));
     }
 
-    public function store(Request $request)
+    public function store(AppointmentRequest $request)
     {
-        $request->validate([
-            'patient_id' => 'required',
-            'date' => 'required',
-            'time' => 'required',
-        ]);
-
-        $exists = Appointment::where('date', $request->date)
+        $data = $request->appointmentData();
+        $exists = Appointment::whereDate('date', $data['date'])
             ->where('time', $request->time)
             ->exists();
 
@@ -36,8 +32,57 @@ class AppointmentController extends Controller
             return back()->with('error', 'This time is already booked!');
         }
 
-        Appointment::create($request->all());
+        Appointment::create($data);
 
         return redirect()->route('appointments.index')->with('success', 'Added successfully');
+    }
+
+    public function show(Appointment $appointment)
+    {
+        $appointment->load('patient');
+
+        return view('appointments.show', compact('appointment'));
+    }
+
+    public function edit(Appointment $appointment)
+    {
+        $patients = Patient::orderBy('name')->get();
+
+        return view('appointments.edit', compact('appointment', 'patients'));
+    }
+
+    public function update(AppointmentRequest $request, Appointment $appointment)
+    {
+        $data = $request->appointmentData();
+        $exists = Appointment::whereDate('date', $data['date'])
+            ->where('time', $request->time)
+                ->where('id', '!=', $appointment->id)
+            ->exists();
+
+        if ($exists) {
+            return back()->withInput()->with('error', 'This time is already booked!');
+        }
+
+        $appointment->update($data);
+
+        return redirect()->route('appointments.index')->with('success', 'Appointment updated successfully.');
+    }
+
+    public function destroy(Appointment $appointment)
+    {
+        $appointment->delete();
+
+        return redirect()->route('appointments.index')->with('success', 'Appointment deleted successfully.');
+    }
+
+    public function updateStatus(Request $request, Appointment $appointment)
+    {
+        $validated = $request->validate([
+            'status' => 'required|in:pending,confirmed,completed,cancelled,no_show',
+        ]);
+
+        $appointment->update($validated);
+
+        return back()->with('success', 'Appointment status updated successfully.');
     }
 }
